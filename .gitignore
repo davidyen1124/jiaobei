@@ -1,0 +1,8 @@
+node_modules
+dist
+renders
+blender/*.blend
+blender/*.blend1
+blender/baked
+blender/__pycache__
+.DS_Store

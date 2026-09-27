@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#120806" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>擲筊・請示神明</title>
+    <meta name="description" content="在廟宇正殿前誠心擲筊：一平一凸為聖筊、兩平為笑筊、兩凸為陰筊。以真實物理與聲音模擬的線上擲筊。" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:url" content="https://davidyen1124.github.io/jiaobei/" />
+    <meta property="og:title" content="擲筊・請示神明" />
+    <meta property="og:description" content="在廟宇正殿前誠心擲筊：一平一凸為聖筊、兩平為笑筊、兩凸為陰筊。以真實物理與聲音模擬的線上擲筊。" />
+    <meta property="og:image" content="https://davidyen1124.github.io/jiaobei/social-preview.jpg" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+    <meta property="og:image:alt" content="擲筊 — Ask the gods. Let physics answer." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=LXGW+WenKai+TC:wght@400;700&family=Noto+Serif+TC:wght@500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="stage" aria-label="廟宇正殿，點擊畫面擲筊"></canvas>
+
+    <div id="loading" class="screen">
+      <div class="loading-inner">
+        <div class="incense" aria-hidden="true"><span></span></div>
+        <p class="loading-title">點香中</p>
+        <div class="bar"><i id="bar"></i></div>
+        <p class="loading-note" id="loadNote">載入廟宇與筊杯…</p>
+      </div>
+    </div>
+
+    <header id="brand" class="hidden">
+      <h1><span>擲</span><span>筊</span></h1>
+      <p>跋桮・請示神明</p>
+    </header>
+
+    <div id="intro" class="hidden">
+      <div class="intro-card">
+        <ol>
+          <li>雙手合十，默念姓名、農曆生辰與住址。</li>
+          <li>誠心稟明所求之事，一次只問一件。</li>
+          <li>點擊畫面，將筊杯輕拋落地。</li>
+        </ol>
+        <p class="tap">點擊畫面擲筊</p>
+      </div>
+    </div>
+
+    <div id="status" class="hidden" aria-live="polite"></div>
+
+    <section id="result" class="hidden" aria-live="assertive">
+      <div class="seal" id="seal">允</div>
+      <h2 id="rTitle">聖筊</h2>
+      <p class="r-sub" id="rSub">一平一凸・神明應允</p>
+      <p class="r-body" id="rBody"></p>
+      <div class="streak" id="streak"></div>
+      <p class="again">再點擊畫面，重新擲筊</p>
+    </section>
+
+    <ol id="history" class="hidden" aria-label="擲筊紀錄"></ol>
+
+    <nav id="tools" class="hidden">
+      <button id="btnSound" type="button" aria-label="音效" title="音效">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path id="icoSound" d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+      </button>
+      <button id="btnInfo" type="button" aria-label="關於擲筊" title="關於擲筊">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16z"/></svg>
+      </button>
+    </nav>
+
+    <aside id="info" class="hidden" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+      <div class="info-card">
+        <button class="close" id="btnClose" type="button" aria-label="關閉">×</button>
+        <h3 id="infoTitle">關於擲筊</h3>
+        <p>擲筊，閩南語稱「跋桮」，是向神明請示是非的傳統儀式。筊杯為一對新月形木片（古時用蚌殼、竹根），一面平坦、一面凸起。</p>
+        <h4>怎麼擲</h4>
+        <p>先上香，在神前稟報姓名、農曆生辰、住址，再清楚說出一件想問的事。雙手捧筊，平面向上舉至眉間，輕輕往上拋，讓筊杯自然落地。</p>
+        <h4>筊象</h4>
+        <dl>
+          <dt>聖筊</dt><dd>一平一凸：神明應允。</dd>
+          <dt>笑筊</dt><dd>兩平面朝上：神明笑而不答，請說清楚再問。</dd>
+          <dt>陰筊</dt><dd>兩凸面朝上：神明不允，宜再思量。</dd>
+          <dt>立筊</dt><dd>筊杯立於地：極為罕見，視為神明顯靈。</dd>
+        </dl>
+        <h4>何時何地</h4>
+        <p>臺灣與閩南、潮汕、港澳及東南亞華人的廟宇與家中神明廳皆可見。求籤時先擲得聖筊方可抽籤，艋舺龍山寺等廟要連續三個聖筊才確認籤號；大甲鎮瀾宮每年元宵以擲筊決定媽祖遶境日期；元宵節各地也常舉辦擲筊比賽，連續聖筊最多者可得金牌、汽車等大獎。</p>
+        <p class="fine">各地說法略有不同，本頁依臺灣廟宇常見解釋（行天宮、龍山寺等）。</p>
+      </div>
+    </aside>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
