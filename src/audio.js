@@ -1,17 +1,20 @@
 /**
  * Sound of 筊 on a granite floor, synthesised from the physics.
  *
- * Every contact impulse reported by Rapier becomes a modal-synthesis "clack":
- * a short broadband contact click + the block's own resonant modes (small
- * hardwood block: strongly damped partials in the 1.5-8 kHz range) + a faint
- * low thump from the stone. Loudness and brightness follow the impact speed,
- * so a hard first landing cracks while the last rocking taps are soft "tok"s.
+ * Every contact impulse reported by Rapier becomes a short wooden "tak".
+ * Matched against phone recordings of real blocks thrown on temple stone:
+ * the hit is a bright, noisy clack (most energy 2-8 kHz, peak ~4-5 kHz) that
+ * dies within a few milliseconds; the only long tail is the hall's reverb.
+ * So the voice is a broadband contact-noise burst plus the block's bending
+ * modes, which sit high (a thick 11 cm wooden crescent) but are damped out in
+ * 2-6 ms by the wood. (Long-ringing pure partials are what make an impact
+ * read as glass.) Loudness and brightness follow the impact speed, so a hard
+ * first landing cracks while the last rocking taps are soft, dull "tok"s.
  * A convolution reverb built for a stone-and-timber hall glues it together.
  */
 
-const MODE_RATIOS = [1, 1.52, 2.21, 2.97, 3.9, 5.1];
-const MODE_AMPS = [1, 0.8, 0.55, 0.42, 0.26, 0.16];
-const MODE_TAUS = [0.05, 0.038, 0.028, 0.02, 0.014, 0.009]; // seconds
+// block modes: [Hz, amplitude, decay time constant (s)]
+const MODES = [[1250, 0.35, 0.006], [2750, 0.8, 0.0045], [4300, 1, 0.0035], [5900, 0.7, 0.0028], [7700, 0.4, 0.002]];
 
 export class TempleAudio {
   constructor() {
@@ -53,10 +56,10 @@ export class TempleAudio {
     this.master.connect(comp).connect(ctx.destination);
 
     this.dry = ctx.createGain(); this.dry.gain.value = 1;
-    this.wetSend = ctx.createGain(); this.wetSend.gain.value = 0.34;
+    this.wetSend = ctx.createGain(); this.wetSend.gain.value = 1.2;
     const verb = ctx.createConvolver();
-    verb.buffer = this.#hallIR(2.1);
-    const verbTone = ctx.createBiquadFilter(); verbTone.type = 'lowpass'; verbTone.frequency.value = 5200;
+    verb.buffer = this.#hallIR(1.6);
+    const verbTone = ctx.createBiquadFilter(); verbTone.type = 'lowpass'; verbTone.frequency.value = 8000;
     this.dry.connect(this.master);
     this.wetSend.connect(verb).connect(verbTone).connect(this.master);
 
@@ -79,7 +82,8 @@ export class TempleAudio {
   }
 
   /** Stereo impulse response: sparse early reflections off pillars/walls, then a dense tail
-   * whose high end dies faster (timber ceiling, incense haze, people). */
+   * whose high end dies a little faster (timber ceiling, incense haze, people). The decay
+   * (RT60 ~1.3 s) and brightness match phone recordings of blocks thrown in a temple hall. */
   #hallIR(sec) {
     const ctx = this.ctx, sr = ctx.sampleRate, n = Math.floor(sr * sec);
     const ir = ctx.createBuffer(2, n, sr);
@@ -88,8 +92,8 @@ export class TempleAudio {
       let lp = 0;
       for (let i = 0; i < n; i++) {
         const t = i / sr;
-        const env = Math.exp(-t / 0.42) * (t < 0.012 ? t / 0.012 : 1);
-        const k = 0.18 + 0.75 * Math.min(1, t / 1.2); // progressively darker
+        const env = Math.exp(-t / 0.19) * (t < 0.012 ? t / 0.012 : 1);
+        const k = 0.05 + 0.45 * Math.min(1, t / 1.2); // progressively darker
         lp += (Math.random() * 2 - 1 - lp) * (1 - k);
         d[i] = lp * env * 0.9;
       }
@@ -140,7 +144,7 @@ export class TempleAudio {
     this.onEvent?.(['impact', speed, kind, pan, block, dist]);
     if (!ctx || !this.enabled || (this.voices > 24 && !this.offline) || !Number.isFinite(speed) || !Number.isFinite(dist)) return;
     // perceptual loudness: the landing (Δv ≈ 5-6 m/s incl. rebound) is loud, rocking taps (0.1 m/s) faint
-    const s = Math.min(1, Math.pow(speed / 6, 0.62));
+    const s = Math.min(1, Math.pow(speed / 6, 0.5));
     if (s < 0.03) return;
     const t = (at ?? ctx.currentTime) + 0.002;
     const gain = s * (1.0 / Math.max(0.7, dist));
@@ -149,55 +153,61 @@ export class TempleAudio {
     p.pan.value = Math.max(-0.9, Math.min(0.9, pan));
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 2400 + 12000 * s; // soft taps are duller
+    tone.frequency.value = 2200 + 11000 * s; // soft taps are duller
     out.connect(tone).connect(p);
     p.connect(this.dry); p.connect(this.wetSend);
-    out.gain.value = gain * (kind === 'block' ? 0.75 : 1);
+    out.gain.value = gain * (kind === 'block' ? 0.8 : 1.35);
     this.voices++;
     let end = t;
 
-    // contact click (broadband, a few ms)
-    const click = ctx.createBufferSource();
-    click.buffer = this.noise;
-    const cf = ctx.createBiquadFilter(); cf.type = 'bandpass';
-    cf.frequency.value = kind === 'block' ? 5200 : 3600 + 1500 * Math.random(); cf.Q.value = 0.7;
-    const cg = ctx.createGain();
-    cg.gain.setValueAtTime(0, t);
-    cg.gain.linearRampToValueAtTime(0.55, t + 0.0006);
-    cg.gain.exponentialRampToValueAtTime(0.001, t + 0.012 + 0.01 * s);
-    click.connect(cf).connect(cg).connect(out);
-    click.start(t, Math.random() * 1.2, 0.05);
-    end = Math.max(end, t + 0.05);
+    // contact noise: the "clack" itself. Real hits rise ~8 dB/octave from 300 Hz to a broad peak
+    // at 4-6 kHz, so the noise is shaped by a gentle high-pass + low-pass rather than a narrow band.
+    // A quieter, longer copy is the rattle of the block settling after the strike.
+    const fc = (kind === 'block' ? 2200 : kind === 'wood' ? 900 : 1800) * (0.85 + 0.3 * Math.random());
+    for (const [level, tau] of [[1, 0.0018 + 0.0014 * s], [0.2, 0.012 + 0.01 * s]]) {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noise;
+      const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = fc; hp.Q.value = 0.5;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7000; lp.Q.value = 0.5;
+      const ng = ctx.createGain();
+      ng.gain.setValueAtTime(0, t);
+      ng.gain.linearRampToValueAtTime(level, t + 0.0003);
+      ng.gain.exponentialRampToValueAtTime(0.0005, t + tau * 7);
+      n.connect(hp).connect(lp).connect(ng).connect(out);
+      n.start(t, Math.random() * 1.2, tau * 7 + 0.01);
+      end = Math.max(end, t + tau * 7);
+    }
 
-    // resonant modes of the block (the strike position changes the mix every hit)
-    const f0 = (block ? 1790 : 1680) * (kind === 'block' ? 1.08 : 1) * (0.97 + 0.06 * Math.random());
-    const nModes = kind === 'block' ? 6 : 5;
-    for (let m = 0; m < nModes; m++) {
+    // bending modes of the block: high but heavily damped (the strike position changes the mix every hit);
+    // 'block' = the two blocks knocking together, 'wood' = the offering table / stool (larger, hollower)
+    const fScale = (block ? 1.06 : 1) * (kind === 'block' ? 1.1 : kind === 'wood' ? 0.6 : 1);
+    const tauScale = kind === 'wood' ? 1.8 : 1;
+    for (const [f, amp, tau0] of MODES) {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.value = f0 * MODE_RATIOS[m] * (0.985 + 0.03 * Math.random());
+      osc.frequency.value = f * fScale * (0.95 + 0.1 * Math.random());
       const g = ctx.createGain();
-      const a = MODE_AMPS[m] * (0.35 + 0.65 * Math.random()) * 0.2 * (m > 2 ? 0.4 + s : 1);
-      const tau = MODE_TAUS[m] * (kind === 'block' ? 0.8 : 1) * (0.8 + 0.4 * Math.random());
+      const a = amp * (0.3 + 0.7 * Math.random()) * 0.1;
+      const tau = tau0 * tauScale * (0.8 + 0.4 * Math.random());
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(a, t + 0.0008);
+      g.gain.linearRampToValueAtTime(a, t + 0.0004);
       g.gain.exponentialRampToValueAtTime(0.0005, t + tau * 7);
       osc.connect(g).connect(out);
       osc.start(t); osc.stop(t + tau * 7 + 0.01);
       end = Math.max(end, t + tau * 7);
     }
 
-    // the stone answers with a dull knock on firm hits
-    if (kind !== 'block' && s > 0.08) {
+    // a faint low knock from the stone on firm hits
+    if (kind !== 'block' && s > 0.1) {
       const th = ctx.createOscillator(); th.type = 'sine';
-      th.frequency.setValueAtTime(260 + 60 * Math.random(), t);
-      th.frequency.exponentialRampToValueAtTime(150, t + 0.03);
+      th.frequency.setValueAtTime(240 + 60 * Math.random(), t);
+      th.frequency.exponentialRampToValueAtTime(150, t + 0.02);
       const tg = ctx.createGain();
       tg.gain.setValueAtTime(0, t);
-      tg.gain.linearRampToValueAtTime(0.35 * s, t + 0.001);
-      tg.gain.exponentialRampToValueAtTime(0.0005, t + 0.045);
+      tg.gain.linearRampToValueAtTime(0.04 * s, t + 0.001);
+      tg.gain.exponentialRampToValueAtTime(0.0005, t + 0.03);
       th.connect(tg).connect(out);
-      th.start(t); th.stop(t + 0.06);
+      th.start(t); th.stop(t + 0.04);
     }
     if (this.offline) this.voices--;
     else setTimeout(() => { this.voices--; out.disconnect(); }, (end - ctx.currentTime + 0.2) * 1000);
@@ -224,7 +234,8 @@ export class TempleAudio {
     const f0 = kind === 'sheng' ? 523.3 : kind === 'li' ? 659.3 : 440;
     const partials = [[1, 1, 3.2], [2.71, 0.45, 1.6], [5.13, 0.22, 0.8], [8.3, 0.08, 0.4]];
     const out = ctx.createGain(); out.gain.value = 0.12;
-    out.connect(this.dry); out.connect(this.wetSend);
+    const send = ctx.createGain(); send.gain.value = 0.3; // the bowl rings on its own; keep it from washing out in the hall
+    out.connect(this.dry); out.connect(send).connect(this.wetSend);
     for (const [r, a, tau] of partials) {
       for (const det of [-0.6, 0.6]) {
         const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f0 * r + det * r;
