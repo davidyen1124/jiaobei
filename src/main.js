@@ -369,9 +369,8 @@ function settle() {
   state.mode = 'result';
   state.lastReading = reading;
   for (const i of [0, 1]) audio.setSlide(i, 0, 0);
-  const streak = ui.show(reading.kind);
-  audio.chime(reading.kind);
-  if (reading.kind === 'sheng' && streak === 3) { audio.chime('sheng', 0.9); audio.chime('li', 1.8); }
+  // no sound for the answer: in real temples the clatter settles into silence (checked against recordings)
+  ui.show(reading.kind);
   // frame the answer: both blocks, whole, in the part of the screen the card leaves free
   const narrow = window.matchMedia('(max-width: 700px), (max-aspect-ratio: 9/10)').matches;
   // layout box of the card without its slide-in transform (offset* ignore transforms)
@@ -570,7 +569,6 @@ window.__jiao = {
       const at = t0 + t;
       if (type === 'impact') off.impact(a[0], a[1], a[2], a[3], a[4], at);
       else if (type === 'slide') off.setSlide(a[0], a[1], a[2], at);
-      else if (type === 'chime') off.chime(a[0], a[1], at);
       else if (type === 'pickup') off.pickup(at);
     }
     const buf = await ctx.startRendering();

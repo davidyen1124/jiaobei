@@ -225,34 +225,6 @@ export class TempleAudio {
     v.pan.pan.setTargetAtTime(Math.max(-0.9, Math.min(0.9, pan)), t, 0.05);
   }
 
-  /** soft bronze bowl (磬) when the answer is revealed */
-  chime(kind = 'sheng', delay = 0, at = null) {
-    const ctx = this.ctx;
-    this.onEvent?.(['chime', kind, delay]);
-    if (!ctx || !this.enabled) return;
-    const t = (at ?? ctx.currentTime) + 0.02 + delay;
-    const f0 = kind === 'sheng' ? 523.3 : kind === 'li' ? 659.3 : 440;
-    const partials = [[1, 1, 3.2], [2.71, 0.45, 1.6], [5.13, 0.22, 0.8], [8.3, 0.08, 0.4]];
-    const out = ctx.createGain(); out.gain.value = 0.12;
-    const send = ctx.createGain(); send.gain.value = 0.3; // the bowl rings on its own; keep it from washing out in the hall
-    out.connect(this.dry); out.connect(send).connect(this.wetSend);
-    for (const [r, a, tau] of partials) {
-      for (const det of [-0.6, 0.6]) {
-        const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f0 * r + det * r;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(a * 0.5, t + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0003, t + tau * 3);
-        o.connect(g).connect(out); o.start(t); o.stop(t + tau * 3 + 0.05);
-      }
-    }
-    // the mallet
-    const n = ctx.createBufferSource(); n.buffer = this.noise;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 1.2;
-    const ng = ctx.createGain(); ng.gain.setValueAtTime(0.25, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-    n.connect(bp).connect(ng).connect(out); n.start(t, 0.1, 0.05);
-  }
-
   /** the rustle of the blocks being cupped in the hands before a throw */
   pickup(at = null) {
     const ctx = this.ctx;
