@@ -48,6 +48,8 @@ export class TempleAudio {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC && !offline) return;
     this.offline = !!offline;
+    // An iPhone's silent switch mutes Web Audio unless the page asks for a playback session.
+    try { if (!offline && navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ignored */ }
     const ctx = (this.ctx = offline || new AC({ latencyHint: 'interactive' }));
     this.master = ctx.createGain();
     this.master.gain.value = this.enabled ? 0.8 : 0;
